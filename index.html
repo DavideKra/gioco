@@ -1,0 +1,179 @@
+﻿<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Gioco - Setup + Tabellone</title>
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+
+<body>
+  <div class="app">
+    <h1>Imposta la partita</h1>
+    <p class="subtitle">Seleziona i combattenti e assegna una pedina unica a ciascun giocatore.</p>
+
+    <!-- STEP 1 -->
+    <section id="step-players" class="step active" aria-live="polite">
+      <h2>Quanti giocatori?</h2>
+      <div class="options" id="player-options" role="radiogroup" aria-label="Numero di giocatori">
+        <div class="option" data-value="2" role="radio" aria-checked="false">2 giocatori</div>
+        <div class="option" data-value="3" role="radio" aria-checked="false">3 giocatori</div>
+        <div class="option" data-value="4" role="radio" aria-checked="false">4 giocatori</div>
+      </div>
+      <div class="actions">
+        <button id="to-pawns" class="primary" disabled>Conferma e continua</button>
+      </div>
+    </section>
+
+    <!-- STEP 2 -->
+    <section id="step-pawns" class="step" aria-live="polite">
+      <h2>Seleziona le pedine</h2>
+
+      <div class="hud">
+        <div class="who" id="player-label">Giocatore 1</div>
+        <div class="badge" id="player-progress">1 / 1</div>
+      </div>
+
+      <div class="select-screen">
+        <div class="stage" id="preview-stage" title="Clicca per proporre questa pedina (poi conferma)">
+          <div class="pawn-wrap" aria-label="Anteprima pedina selezionata">
+            <div class="base" aria-hidden="true"></div>
+            <img id="preview-img" class="pawn-img" src="" alt="Pedina selezionata" />
+          </div>
+        </div>
+
+        <div class="name-grid" id="name-grid" role="listbox" aria-label="Seleziona un killer"></div>
+      </div>
+
+      <!-- conferma scelta pedina -->
+      <div class="pick-confirm" id="pick-confirm" hidden>
+        <div>
+          <div class="badge" id="pick-for">Per Giocatore</div>
+          <strong id="pick-text">Confermi questa pedina?</strong>
+        </div>
+        <div class="mini-actions">
+          <button class="secondary" id="pick-cancel">Annulla</button>
+          <button class="success" id="pick-accept">Conferma pedina</button>
+        </div>
+      </div>
+
+      <div class="summary" id="summary" hidden>
+        <strong>Scelte effettuate</strong>
+        <ul id="summary-list"></ul>
+      </div>
+
+      <div class="confirm">
+        <input type="checkbox" id="final-confirm" />
+        <label for="final-confirm">Confermo le scelte</label>
+      </div>
+
+      <div class="actions">
+        <button id="back" class="secondary">Indietro</button>
+        <button id="finish" class="primary" disabled>Vai al tabellone</button>
+      </div>
+
+      <div class="done" id="done">Scelte confermate. Buona partita!</div>
+    </section>
+
+    <!-- STEP 3: TABELLONE -->
+    <section id="step-board" class="step" aria-live="polite">
+      <h2>Tabellone</h2>
+      <div class="board-tools">
+        <button id="go-home" class="tool-btn" aria-label="Torna alla home">
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path d="M12 3l9 8h-3v9h-5v-6H11v6H6v-9H3l9-8z" />
+          </svg>
+        </button>
+        <button id="reset-board" class="tool-btn" aria-label="Reset pedine">
+          Reset
+        </button>
+      </div>
+
+      <div class="board-upper">
+        <div class="turn-panel">
+          <div class="turn-title">Turno</div>
+          <div class="turn-player" id="turn-player">Giocatore 1</div>
+          <div class="turn-pawn">
+            <img id="turn-pawn-img" src="" alt="Pedina del giocatore di turno" />
+          </div>
+        </div>
+
+        <div class="dice-panel" aria-live="polite">
+          <div class="dice-header">
+            <div class="dice-label">Lancio dadi</div>
+            <div class="dice-status" id="dice-status">Pronto a lanciare.</div>
+          </div>
+          <div class="dice-area">
+            <div class="die face-1" id="die-1" aria-label="Dado 1">
+              <span class="pip p1"></span>
+              <span class="pip p2"></span>
+              <span class="pip p3"></span>
+              <span class="pip p4"></span>
+              <span class="pip p5"></span>
+              <span class="pip p6"></span>
+              <span class="pip p7"></span>
+            </div>
+            <div class="die face-1" id="die-2" aria-label="Dado 2">
+              <span class="pip p1"></span>
+              <span class="pip p2"></span>
+              <span class="pip p3"></span>
+              <span class="pip p4"></span>
+              <span class="pip p5"></span>
+              <span class="pip p6"></span>
+              <span class="pip p7"></span>
+            </div>
+          </div>
+          <div class="dice-actions">
+            <button id="roll-dice" class="primary">Lancia i dadi</button>
+          </div>
+          <div class="question-box" id="question-box" hidden>
+            <div class="question-topline" id="question-topline">Hai fatto 7, quindi ti verrà posta la domanda Media.</div>
+            <div class="question-text" id="question-text">Testo domanda</div>
+            <div class="question-options" id="question-options"></div>
+            <div class="question-feedback" id="question-feedback"></div>
+          </div>
+          <div class="ranking-box" id="ranking-box" hidden>
+            <div class="ranking-topline" id="ranking-topline">Casella speciale: metti in classifica.</div>
+            <div class="ranking-instruction">Ordina i serial killer dal minore al maggiore numero di omicidi.</div>
+            <div class="ranking-list" id="ranking-list"></div>
+            <div class="ranking-actions">
+              <button id="ranking-confirm" class="primary">Conferma</button>
+            </div>
+            <div class="ranking-feedback" id="ranking-feedback"></div>
+          </div>
+          <div class="match-box" id="match-box" hidden>
+            <div class="match-topline" id="match-topline">Casella speciale: abbina l'oggetto.</div>
+            <div class="match-instruction">Abbina ogni serial killer al suo oggetto caratteristico.</div>
+            <div class="match-grid">
+              <div class="match-col">
+                <div class="match-col-title">Serial killer</div>
+                <div class="match-list" id="match-killers"></div>
+              </div>
+              <div class="match-col">
+                <div class="match-col-title">Oggetti</div>
+                <div class="match-list" id="match-objects"></div>
+              </div>
+            </div>
+            <div class="match-actions">
+              <button id="match-confirm" class="primary">Conferma</button>
+            </div>
+            <div class="match-feedback" id="match-feedback"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="board" id="board" aria-label="Tabellone 0-99"></div>
+
+      <p class="board-hint">
+        Regole: se esce un doppio, ritiri. Al terzo doppio consecutivo torni indietro di quel risultato. Al primo lancio non doppio rispondi a una domanda: se corretta vai avanti, se sbagli vai indietro. Caselle speciali: stella = classifica vittime, rombo = abbina oggetto (sostituiscono la domanda).
+      </p>
+
+    </section>
+  </div>
+
+  <script src="./objects.js" defer></script>
+  <script src="./killers.js" defer></script>
+  <script src="./questions.js" defer></script>
+  <script src="./app.js" defer></script>
+</body>
+</html>
