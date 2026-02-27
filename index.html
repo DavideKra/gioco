@@ -126,12 +126,6 @@
           <div class="dice-actions">
             <button id="roll-dice" class="primary">Lancia i dadi</button>
           </div>
-          <div class="question-box" id="question-box" hidden>
-            <div class="question-topline" id="question-topline">Hai fatto 7, quindi ti verrà posta la domanda Media.</div>
-            <div class="question-text" id="question-text">Testo domanda</div>
-            <div class="question-options" id="question-options"></div>
-            <div class="question-feedback" id="question-feedback"></div>
-          </div>
           <div class="ranking-box" id="ranking-box" hidden>
             <div class="ranking-topline" id="ranking-topline">Casella speciale: metti in classifica.</div>
             <div class="ranking-instruction">Ordina i serial killer dal minore al maggiore numero di omicidi.</div>
@@ -159,16 +153,34 @@
             </div>
             <div class="match-feedback" id="match-feedback"></div>
           </div>
+          <div class="guess-box" id="guess-box" hidden>
+            <div class="guess-topline" id="guess-topline">Casella speciale: stima il numero di vittime.</div>
+            <div class="guess-killer" id="guess-killer">Nome serial killer</div>
+            <div class="guess-instruction">Ogni giocatore sceglie un numero da 1 a 100+.</div>
+            <div class="guess-list" id="guess-list"></div>
+            <div class="guess-actions">
+              <button id="guess-confirm" class="primary">Conferma</button>
+            </div>
+            <div class="guess-feedback" id="guess-feedback"></div>
+          </div>
         </div>
       </div>
 
       <div class="board" id="board" aria-label="Tabellone 0-99"></div>
 
       <p class="board-hint">
-        Regole: se esce un doppio, ritiri. Al terzo doppio consecutivo torni indietro di quel risultato. Al primo lancio non doppio rispondi a una domanda: se corretta vai avanti, se sbagli vai indietro. Caselle speciali: stella = classifica vittime, rombo = abbina oggetto (sostituiscono la domanda).
+        Regole: se esce un doppio, ritiri. Al terzo doppio consecutivo torni indietro di quel risultato. Al primo lancio non doppio rispondi a una domanda: se corretta vai avanti, se sbagli vai indietro. Caselle speciali: K (10/20/30/...) = stima vittime per tutti, stella = classifica vittime, rombo = abbina oggetto (sostituiscono la domanda).
       </p>
 
     </section>
+  </div>
+
+  <div class="modal-backdrop" id="modal-backdrop" hidden></div>
+  <div class="question-box" id="question-box" hidden>
+    <div class="question-topline" id="question-topline">Hai fatto 7, quindi ti verrà posta la domanda Media.</div>
+    <div class="question-text" id="question-text">Testo domanda</div>
+    <div class="question-options" id="question-options"></div>
+    <div class="question-feedback" id="question-feedback"></div>
   </div>
 
   <script src="./objects.js" defer></script>

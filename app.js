@@ -44,6 +44,7 @@ const questionTopline = document.getElementById('question-topline');
 const questionText = document.getElementById('question-text');
 const questionOptions = document.getElementById('question-options');
 const questionFeedback = document.getElementById('question-feedback');
+const modalBackdrop = document.getElementById('modal-backdrop');
 const rankingBox = document.getElementById('ranking-box');
 const rankingTopline = document.getElementById('ranking-topline');
 const rankingList = document.getElementById('ranking-list');
@@ -55,6 +56,12 @@ const matchKillers = document.getElementById('match-killers');
 const matchObjects = document.getElementById('match-objects');
 const matchConfirm = document.getElementById('match-confirm');
 const matchFeedback = document.getElementById('match-feedback');
+const guessBox = document.getElementById('guess-box');
+const guessTopline = document.getElementById('guess-topline');
+const guessKillerName = document.getElementById('guess-killer');
+const guessList = document.getElementById('guess-list');
+const guessConfirm = document.getElementById('guess-confirm');
+const guessFeedback = document.getElementById('guess-feedback');
 
 // ======= Data =======
 const pawnFiles = [
@@ -182,6 +189,11 @@ function updateDiceStatus(text) {
   if (diceStatus) diceStatus.textContent = text;
 }
 
+function setQuestionOverlay(isOpen) {
+  if (questionBox) questionBox.hidden = !isOpen;
+  if (modalBackdrop) modalBackdrop.hidden = !isOpen;
+}
+
 function setDieFace(dieEl, value) {
   if (!dieEl) return;
   dieEl.classList.remove('face-1', 'face-2', 'face-3', 'face-4', 'face-5', 'face-6');
@@ -224,6 +236,9 @@ function movePlayerBy(playerIndex, delta) {
     targetCell.appendChild(token);
   }
 
+  updateCellState(current);
+  updateCellState(target);
+
   return { from: current, to: target };
 }
 
@@ -262,12 +277,22 @@ function getQuestionsPool() {
   return Array.isArray(window.QUESTIONS) ? window.QUESTIONS : [];
 }
 
+let remainingQuestions = [];
+
+function resetQuestionsPool() {
+  remainingQuestions = getQuestionsPool().slice();
+}
+
 function getKillersPool() {
   return Array.isArray(window.KILLERS) ? window.KILLERS : [];
 }
 
 function getObjectsPool() {
   return Array.isArray(window.OBJECT_MATCHES) ? window.OBJECT_MATCHES : [];
+}
+
+function isKillerGuessCell(index) {
+  return index !== 0 && index % 10 === 0;
 }
 
 function isRankCell(index) {
@@ -279,16 +304,17 @@ function isMatchCell(index) {
 }
 
 function getSpecialTypeForCell(index) {
+  if (isKillerGuessCell(index)) return 'guess';
   if (isRankCell(index)) return 'rank';
   if (isMatchCell(index)) return 'match';
   return null;
 }
 
 function pickRandomQuestion() {
-  const pool = getQuestionsPool();
-  if (pool.length === 0) return null;
+  const pool = remainingQuestions;
+  if (!Array.isArray(pool) || pool.length === 0) return null;
   const idx = Math.floor(Math.random() * pool.length);
-  return pool[idx];
+  return { question: pool[idx], index: idx };
 }
 
 function openQuestionBox(question, options, level, steps) {
@@ -299,7 +325,7 @@ function openQuestionBox(question, options, level, steps) {
   questionText.textContent = question.question;
   questionOptions.innerHTML = '';
   questionFeedback.textContent = '';
-  questionBox.hidden = false;
+  setQuestionOverlay(true);
 
   return new Promise((resolve) => {
     const correctValue = question.correct;
@@ -315,7 +341,7 @@ function openQuestionBox(question, options, level, steps) {
         btn.classList.add(isCorrect ? 'correct' : 'wrong');
 
         setTimeout(() => {
-          questionBox.hidden = true;
+          setQuestionOverlay(false);
           resolve(isCorrect);
         }, 650);
       });
@@ -326,12 +352,13 @@ function openQuestionBox(question, options, level, steps) {
 
 async function askQuestionForMove(steps) {
   const level = difficultyForMove(steps);
-  const question = pickRandomQuestion();
-  if (!question) {
+  const picked = pickRandomQuestion();
+  if (!picked) {
     updateDiceStatus('Nessuna domanda disponibile: movimento automatico.');
     return { isCorrect: true, level };
   }
 
+  const question = picked.question;
   const optionCount = optionsCountForDifficulty(level);
   const wrongPool = Array.isArray(question.wrong) ? question.wrong : [];
   let wrongs = shuffleArray(wrongPool);
@@ -345,6 +372,9 @@ async function askQuestionForMove(steps) {
   wrongs = wrongs.slice(0, neededWrongs);
   const options = shuffleArray([question.correct, ...wrongs]);
   const isCorrect = await openQuestionBox(question, options, level, steps);
+  if (picked.index >= 0 && picked.index < remainingQuestions.length) {
+    remainingQuestions.splice(picked.index, 1);
+  }
   return { isCorrect, level };
 }
 
@@ -436,6 +466,7 @@ let matchPairs = [];
 let matchObjectsOrder = [];
 let matchActive = false;
 let dragIndex = null;
+let matchSelectedIndex = null;
 
 function pickRandomMatches(count) {
   const pool = getObjectsPool();
@@ -467,9 +498,13 @@ function renderMatchLists() {
     item.draggable = true;
     item.dataset.index = String(index);
     item.textContent = pair.object;
+    if (matchSelectedIndex === index) {
+      item.classList.add('selected');
+    }
 
     item.addEventListener('dragstart', () => {
       dragIndex = index;
+      matchSelectedIndex = null;
       item.classList.add('dragging');
     });
     item.addEventListener('dragend', () => {
@@ -486,6 +521,26 @@ function renderMatchLists() {
       if (Number.isNaN(targetIndex)) return;
       const [moved] = matchObjectsOrder.splice(dragIndex, 1);
       matchObjectsOrder.splice(targetIndex, 0, moved);
+      matchSelectedIndex = null;
+      renderMatchLists();
+    });
+    item.addEventListener('click', () => {
+      const targetIndex = Number(item.dataset.index);
+      if (Number.isNaN(targetIndex)) return;
+      if (matchSelectedIndex === null) {
+        matchSelectedIndex = targetIndex;
+        renderMatchLists();
+        return;
+      }
+      if (matchSelectedIndex === targetIndex) {
+        matchSelectedIndex = null;
+        renderMatchLists();
+        return;
+      }
+      const first = matchSelectedIndex;
+      const second = targetIndex;
+      [matchObjectsOrder[first], matchObjectsOrder[second]] = [matchObjectsOrder[second], matchObjectsOrder[first]];
+      matchSelectedIndex = null;
       renderMatchLists();
     });
 
@@ -516,6 +571,7 @@ function openMatchGame(steps, playerIndex) {
   matchPairs = shuffleArray(pickRandomMatches(4));
   matchObjectsOrder = shuffleArray(matchPairs);
   matchActive = true;
+  matchSelectedIndex = null;
   matchTopline.textContent = `Casella speciale: abbina l'oggetto. In gioco ${steps} caselle.`;
   matchFeedback.textContent = '';
   renderMatchLists();
@@ -543,8 +599,227 @@ function openMatchGame(steps, playerIndex) {
   });
 }
 
+let guessActive = false;
+let guessValues = {};
+let currentGuessKiller = null;
+
+function pickRandomKiller() {
+  const pool = getKillersPool();
+  if (pool.length === 0) return null;
+  const idx = Math.floor(Math.random() * pool.length);
+  return pool[idx];
+}
+
+function formatGuessValue(value) {
+  return value >= 101 ? '100+' : String(value);
+}
+
+function normalizedGuessValue(value) {
+  return value >= 101 ? 100 : value;
+}
+
+function guessDistance(value, actual) {
+  return Math.abs(actual - normalizedGuessValue(value));
+}
+
+function playerLabelForGuess(playerIndex) {
+  const pawnName = getPlayerPawnName(playerIndex);
+  return pawnName ? `Giocatore ${playerIndex} (${pawnName})` : `Giocatore ${playerIndex}`;
+}
+
+function renderGuessList() {
+  if (!guessList) return;
+  guessList.innerHTML = '';
+  guessValues = {};
+
+  for (let i = 1; i <= playerCount; i++) {
+    const row = document.createElement('div');
+    row.className = 'guess-row';
+
+    const label = document.createElement('div');
+    label.className = 'guess-player';
+    label.textContent = playerLabelForGuess(i);
+
+    const rangeWrap = document.createElement('div');
+    rangeWrap.className = 'guess-range';
+
+    const input = document.createElement('input');
+    input.type = 'range';
+    input.min = '1';
+    input.max = '101';
+    input.step = '1';
+    input.value = '50';
+    input.dataset.player = String(i);
+
+    const valueEl = document.createElement('div');
+    valueEl.className = 'guess-value';
+    valueEl.textContent = formatGuessValue(Number(input.value));
+
+    guessValues[i] = Number(input.value);
+
+    input.addEventListener('input', () => {
+      const val = Number(input.value);
+      guessValues[i] = val;
+      valueEl.textContent = formatGuessValue(val);
+    });
+
+    rangeWrap.appendChild(input);
+    row.appendChild(label);
+    row.appendChild(rangeWrap);
+    row.appendChild(valueEl);
+    guessList.appendChild(row);
+  }
+}
+
+function computeGuessResults(killer, guessesByPlayer) {
+  const actual = killer.kills;
+  const errors = {};
+  const players = Object.keys(guessesByPlayer).map(Number);
+
+  players.forEach((playerIndex) => {
+    errors[playerIndex] = guessDistance(guessesByPlayer[playerIndex], actual);
+  });
+
+  const errorValues = Object.values(errors);
+  const minError = Math.min(...errorValues);
+  const maxError = Math.max(...errorValues);
+
+  const closest = players.filter(p => errors[p] === minError);
+  const farthest = players.filter(p => errors[p] === maxError);
+
+  const deltas = {};
+  players.forEach((p) => { deltas[p] = 0; });
+
+  if (closest.length === 1) {
+    deltas[closest[0]] += 10;
+  } else if (closest.length > 1) {
+    closest.forEach(p => { deltas[p] += 5; });
+  }
+
+  if (farthest.length === 1) {
+    deltas[farthest[0]] -= 10;
+  } else if (farthest.length > 1) {
+    farthest.forEach(p => { deltas[p] -= 5; });
+  }
+
+  return {
+    actual,
+    errors,
+    guesses: guessesByPlayer,
+    closest,
+    farthest,
+    deltas
+  };
+}
+
+function openKillerGuessGame() {
+  if (!guessBox) return Promise.resolve(null);
+
+  const killer = pickRandomKiller();
+  if (!killer) {
+    updateDiceStatus('Nessun killer disponibile per la casella speciale.');
+    return Promise.resolve(null);
+  }
+
+  currentGuessKiller = killer;
+  guessActive = true;
+  if (guessTopline) {
+    guessTopline.textContent = 'Casella speciale: stima il numero di vittime.';
+  }
+  if (guessKillerName) {
+    guessKillerName.textContent = killer.name;
+  }
+  if (guessFeedback) {
+    guessFeedback.textContent = '';
+  }
+  renderGuessList();
+  guessBox.hidden = false;
+
+  return new Promise((resolve) => {
+    const handler = () => {
+      if (!guessActive) return;
+      guessActive = false;
+      if (guessConfirm) guessConfirm.disabled = true;
+
+      const results = computeGuessResults(killer, guessValues);
+      const movedPlayers = [];
+
+      Object.keys(results.deltas).forEach((key) => {
+        const playerIndex = Number(key);
+        const delta = results.deltas[playerIndex];
+        if (delta === 0) return;
+        const moved = movePlayerBy(playerIndex, delta);
+        movedPlayers.push({
+          playerIndex,
+          delta,
+          from: moved.from,
+          to: moved.to
+        });
+      });
+
+      if (guessFeedback) {
+        const lines = [];
+        lines.push(`Vittime reali: ${results.actual}.`);
+        const closestLabel = results.closest.map(playerLabelForGuess).join(', ');
+        const farthestLabel = results.farthest.map(playerLabelForGuess).join(', ');
+        if (results.closest.length === 1) {
+          lines.push(`Più vicino: ${closestLabel} (+10).`);
+        } else {
+          lines.push(`Più vicini: ${closestLabel} (+5).`);
+        }
+        if (results.farthest.length === 1) {
+          lines.push(`Più lontano: ${farthestLabel} (-10).`);
+        } else {
+          lines.push(`Più lontani: ${farthestLabel} (-5).`);
+        }
+
+        Object.keys(results.guesses)
+          .map(Number)
+          .sort((a, b) => a - b)
+          .forEach((playerIndex) => {
+            const guessValue = formatGuessValue(results.guesses[playerIndex]);
+            const errorValue = results.errors[playerIndex];
+            lines.push(`${playerLabelForGuess(playerIndex)}: ${guessValue} (errore ${errorValue}).`);
+          });
+
+        guessFeedback.textContent = lines.join('\n');
+      }
+
+      setTimeout(() => {
+        guessBox.hidden = true;
+        if (guessConfirm) guessConfirm.disabled = false;
+        resolve({ killer, results, movedPlayers });
+      }, 700);
+    };
+
+    if (guessConfirm) {
+      guessConfirm.onclick = handler;
+    } else {
+      resolve(null);
+    }
+  });
+}
+
 async function handleSpecialGame(type, steps) {
-  if (questionBox) questionBox.hidden = true;
+  setQuestionOverlay(false);
+
+  if (type === 'guess') {
+    if (rankingBox) rankingBox.hidden = true;
+    if (matchBox) matchBox.hidden = true;
+    const outcome = await openKillerGuessGame();
+    if (outcome && outcome.killer) {
+      const closestDelta = outcome.results.closest.length === 1 ? 10 : 5;
+      const farthestDelta = outcome.results.farthest.length === 1 ? 10 : 5;
+      const closestLabel = outcome.results.closest.map(playerLabelForGuess).join(', ');
+      const farthestLabel = outcome.results.farthest.map(playerLabelForGuess).join(', ');
+      updateDiceStatus(
+        `Casella vittime: ${outcome.killer.name} (${outcome.results.actual}). ` +
+        `Più vicini: ${closestLabel} (+${closestDelta}). ` +
+        `Più lontani: ${farthestLabel} (-${farthestDelta}).`
+      );
+    }
+    return;
+  }
 
   if (type === 'rank') {
     if (matchBox) matchBox.hidden = true;
@@ -681,7 +956,10 @@ function buildBoard() {
     const cell = document.createElement('div');
     cell.className = 'cell';
     cell.dataset.cell = String(i);
-    if (isRankCell(i)) {
+    if (isKillerGuessCell(i)) {
+      cell.classList.add('special-guess');
+      cell.dataset.special = 'guess';
+    } else if (isRankCell(i)) {
       cell.classList.add('special-rank');
       cell.dataset.special = 'rank';
     } else if (isMatchCell(i)) {
@@ -723,10 +1001,13 @@ function createPawnToken(playerIndex, pawn) {
 }
 
 function placeAllPawnsAtCell0() {
+  if (!boardEl) return;
   const cell0 = boardEl.querySelector('[data-tokens-for="0"]');
   if (!cell0) return;
 
-  cell0.innerHTML = '';
+  boardEl.querySelectorAll('.cell-tokens').forEach((cell) => {
+    cell.innerHTML = '';
+  });
 
   const players = Object.keys(selections)
     .sort((a,b) => Number(a) - Number(b))
@@ -738,6 +1019,26 @@ function placeAllPawnsAtCell0() {
     if (!pawn) return;
     cell0.appendChild(createPawnToken(p, pawn));
   });
+
+  refreshAllCellStates();
+}
+
+function updateCellState(cellIndex) {
+  if (!boardEl) return;
+  const cell = boardEl.querySelector(`[data-cell="${cellIndex}"]`);
+  const tokens = boardEl.querySelector(`[data-tokens-for="${cellIndex}"]`);
+  if (!cell || !tokens) return;
+  const count = tokens.children.length;
+  cell.classList.toggle('cell-occupied', count > 0);
+  tokens.classList.remove('tokens-single', 'tokens-multi');
+  if (count === 1) tokens.classList.add('tokens-single');
+  if (count > 1) tokens.classList.add('tokens-multi');
+}
+
+function refreshAllCellStates() {
+  for (let i = 0; i < 100; i++) {
+    updateCellState(i);
+  }
 }
 
 function initBoardState() {
@@ -746,13 +1047,15 @@ function initBoardState() {
     playerPositions[i] = 0;
   }
 
+  resetQuestionsPool();
   setTurnPlayer(1);
   updateDiceStatus('Pronto a lanciare.');
   setDieFace(die1El, 1);
   setDieFace(die2El, 1);
-  if (questionBox) questionBox.hidden = true;
+  setQuestionOverlay(false);
   if (rankingBox) rankingBox.hidden = true;
   if (matchBox) matchBox.hidden = true;
+  if (guessBox) guessBox.hidden = true;
   if (rollDiceBtn) rollDiceBtn.disabled = false;
 }
 
@@ -813,9 +1116,10 @@ async function handleRollDice() {
   if (isRolling || playerCount === 0) return;
   isRolling = true;
   if (rollDiceBtn) rollDiceBtn.disabled = true;
-  if (questionBox) questionBox.hidden = true;
+  setQuestionOverlay(false);
   if (rankingBox) rankingBox.hidden = true;
   if (matchBox) matchBox.hidden = true;
+  if (guessBox) guessBox.hidden = true;
 
   let consecutiveDoubles = 0;
   let rollCount = 0;

@@ -1,0 +1,3 @@
+Removed duplicates: 2
+- Quante vittime ha ucciso Donato Bilancia tra il 1997 e il 1998?  | DUP of: Quanti omicidi confessò Donato Bilancia (1997–1998)?  | sim=0.65  | subject+answer
+- Con quale soprannome è noto Luigi Chiatti?  | DUP of: Con quale pseudonimo è ricordato Luigi Chiatti?  | sim=0.73  | subject+answer
